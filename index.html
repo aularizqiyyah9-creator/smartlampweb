@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Lamp</title>
+
+  <style>
+    /*BAGIAN 1: CSS (tampilan) Warna utama disimpan di variabel supaya mudah diganti*/
+    :root {
+      --gelap: #333333;
+      --oranye: #F47B20;
+      --abu: #D9D9D9;
+      --hijau: #1f9d8a;
+      --merah: #c0392b;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f2f2f2;
+      color: #222;
+    }
+
+    /* Navbar atas (mode pengguna) */
+    .navbar {
+      background: var(--gelap);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 24px;
+    }
+    .logo { color: var(--oranye); font-weight: bold; font-size: 18px; }
+    .menu { display: flex; gap: 20px; align-items: center; }
+    .menu a {
+      color: white; font-size: 14px; font-weight: bold;
+      cursor: pointer; text-decoration: none;
+    }
+    .menu a.aktif { color: var(--oranye); }
+
+    /* Tombol ganti mode (Pengguna / Admin) */
+    .btn-mode {
+      background: transparent; color: white;
+      border: 1px solid white; border-radius: 4px;
+      padding: 4px 10px; font-size: 12px; cursor: pointer;
+    }
+
+    /* Konten halaman */
+    .konten { max-width: 900px; margin: 0 auto; padding: 24px; background: white; min-height: calc(100vh - 52px); }
+    .baris-judul { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    h2 { font-size: 20px; }
+    .sub { font-size: 12px; color: #555; margin-top: 4px; }
+
+    /* Tombol */
+    .btn {
+      background: var(--oranye); color: white; border: none;
+      padding: 8px 16px; font-size: 13px; font-weight: bold;
+      cursor: pointer; border-radius: 2px;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn-kecil { background: transparent; border: none; color: #333; font-size: 12px; cursor: pointer; text-decoration: underline; }
+
+    /* Kartu lampu (Dashboard pengguna) */
+    .grid-lampu { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+    .kartu-lampu {
+      background: var(--abu); padding: 16px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .info-lampu { display: flex; align-items: center; gap: 12px; }
+    .ikon {
+      width: 38px; height: 38px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; font-size: 20px;
+      background: #aaa;
+    }
+    .ikon.nyala { background: #f5a623; }
+    .nama { font-weight: bold; font-size: 14px; }
+    .status { font-size: 12px; margin-top: 3px; }
+    .status.nyala { color: var(--hijau); font-weight: bold; }
+
+    /* Toggle switch */
+    .toggle {
+      width: 42px; height: 22px; border-radius: 11px;
+      background: #667085; position: relative; cursor: pointer;
+      border: none; flex-shrink: 0;
+    }
+    .toggle::after {
+      content: ""; position: absolute; top: 3px; left: 3px;
+      width: 16px; height: 16px; border-radius: 50%; background: white;
+      transition: 0.2s;
+    }
+    .toggle.on { background: var(--hijau); }
+    .toggle.on::after { left: 23px; }
+
+    /* Kartu jadwal */
+    .kartu-jadwal {
+      background: var(--abu); padding: 14px 16px; margin-bottom: 12px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .kartu-jadwal .jam { font-size: 12px; margin-top: 6px; color: #444; }
+    .kartu-jadwal .hari { font-size: 11px; margin-top: 3px; color: #666; }
+    .aksi-kartu { margin-top: 6px; display: flex; gap: 10px; }
+
+    .badge { font-size: 11px; padding: 2px 8px; color: white; font-weight: bold; }
+    .badge.aktif { background: #3cc47c; }
+    .badge.nonaktif { background: #777; }
+
+    /* ---------- Tabel (Riwayat) ---------- */
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #333; padding: 14px 10px; text-align: center; font-size: 14px; }
+    th { background: white; }
+
+    /* ---------- Layout admin (sidebar kiri) ---------- */
+    .layout-admin { display: flex; min-height: 100vh; }
+    .sidebar { width: 200px; background: var(--gelap); padding: 16px 0; flex-shrink: 0; }
+    .sidebar .logo { padding: 0 20px 20px; display: block; }
+    .sidebar a {
+      display: block; color: white; padding: 10px 20px;
+      font-size: 14px; font-weight: bold; cursor: pointer; margin: 4px 0;
+    }
+    .sidebar a.aktif { background: var(--oranye); }
+    .sidebar .btn-mode { margin: 20px; }
+    .isi-admin { flex: 1; background: white; padding: 24px; }
+
+    /* ---------- Kotak statistik admin ---------- */
+    .grid-stat { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; max-width: 500px; margin: 20px 0; }
+    .stat { background: var(--abu); padding: 14px; }
+    .stat small { font-size: 12px; font-weight: bold; }
+    .stat .angka { font-size: 28px; margin-top: 8px; }
+
+    .kotak { background: var(--abu); padding: 14px; max-width: 500px; margin-bottom: 20px; }
+    .kotak h4 { font-size: 13px; margin-bottom: 10px; }
+    .baris-status { display: flex; justify-content: space-between; font-size: 13px; padding: 7px 0; border-top: 1px solid #bbb; }
+    .online { color: var(--hijau); font-weight: bold; }
+    .offline { color: var(--merah); font-weight: bold; }
+
+    /* Grafik batang di halaman laporan */
+    .chart-judul { font-size: 13px; font-weight: bold; margin: 30px 0 14px; }
+    .chart { margin-left: 80px; max-width: 560px; }
+    .chart-area { position: relative; padding: 6px 0; border-left: 1px solid #999; }
+    .garis { position: absolute; top: 0; bottom: 0; width: 1px; background: #e5e5e5; }
+    .chart-row { position: relative; height: 28px; margin: 8px 0; }
+    .chart-label { position: absolute; left: -80px; width: 72px; text-align: right; font-size: 11px; top: 7px; }
+    .bar-kuning { height: 100%; background: #F7B731; position: relative; z-index: 1; }
+    .chart-axis { position: relative; height: 20px; border-top: 1px solid #999; }
+    .tick { position: absolute; top: 4px; transform: translateX(-50%); font-size: 11px; color: #555; }
+    .catatan { font-size: 11px; color: #666; margin-top: 14px; }
+
+    .form-tambah { display: flex; gap: 10px; margin-bottom: 20px; }
+    .form-tambah input { flex: 1; padding: 8px; border: 1px solid #aaa; }
+    select { padding: 6px; }
+
+    /* ---------- Responsif untuk HP ---------- */
+    @media (max-width: 650px) {
+      .layout-admin { flex-direction: column; }
+      .sidebar { width: 100%; display: flex; flex-wrap: wrap; align-items: center; padding: 8px; }
+      .sidebar .logo { padding: 0 12px; }
+      .sidebar a { padding: 8px 12px; margin: 0; }
+      .sidebar .btn-mode { margin: 4px 12px; }
+    }
+  </style>
+</head>
+
+<body>
+<!-- Seluruh tampilan akan "digambar" JavaScript ke dalam div ini -->
+<div id="app"></div>
+
+<script>
+/* BAGIAN 2: DATA
+   Semua data aplikasi disimpan di array (daftar) berikut.
+   Kalau ingin ganti isi, cukup ubah di sini. */
+let daftarLampu = [
+  { id: 1, nama: "Ruang Tamu", nyala: true,  online: true },
+  { id: 2, nama: "Kamar Tidur", nyala: false, online: true },
+  { id: 3, nama: "Dapur",       nyala: true,  online: true },
+  { id: 4, nama: "Teras",       nyala: false, online: true },
+  { id: 5, nama: "Garasi",      nyala: false, online: false }
+];
+
+let daftarJadwal = [
+  { id: 1, lampu: "Ruang Tamu",  mulai: "18.00", selesai: "23.00", hari: "Setiap hari", aktif: true },
+  { id: 2, lampu: "Teras",       mulai: "17.30", selesai: "05.30", hari: "Setiap hari", aktif: true },
+  { id: 3, lampu: "Kamar Tidur", mulai: "20.00", selesai: "22.00", hari: "Senin - Jumat", aktif: false },
+  { id: 4, lampu: "Dapur",       mulai: "18.00", selesai: "22.00", hari: "Setiap hari", aktif: true }
+];
+
+// Riwayat penggunaan (isi halaman yang kosong di Figma)
+let daftarRiwayat = [
+  { waktu: "06.00", lampu: "Teras", aksi: "Mati",  sumber: "Jadwal" },
+  { waktu: "17.30", lampu: "Teras", aksi: "Nyala", sumber: "Jadwal" },
+  { waktu: "19.15", lampu: "Dapur", aksi: "Nyala", sumber: "Jadwal" },
+  { waktu: "21.45", lampu: "Dapur", aksi: "Mati",  sumber: "Manual" }
+];
+
+// Data laporan durasi (dalam jam)
+const dataLaporan = {
+  Harian:   { total: 12,  perLampu: { "Ruang Tamu": 8,   "Teras": 6,   "Dapur": 3.5 } },
+  Mingguan: { total: 68,  perLampu: { "Ruang Tamu": 40,  "Teras": 30,  "Dapur": 18 } },
+  Bulanan:  { total: 270, perLampu: { "Ruang Tamu": 160, "Teras": 120, "Dapur": 70 } }
+};
+
+/* ---------- Variabel status aplikasi ---------- */
+let mode = "user";          // "user" atau "admin"
+let halaman = "dashboard";  // halaman yang sedang dibuka
+let periode = "Harian";     // periode di halaman laporan
+
+/* BAGIAN 3: FUNGSI BANTU */
+
+// Mengambil jam sekarang, contoh hasil: "19.15"
+function jamSekarang() {
+  const sekarang = new Date();
+  const jam = String(sekarang.getHours()).padStart(2, "0");
+  const menit = String(sekarang.getMinutes()).padStart(2, "0");
+  return jam + "." + menit;
+}
+
+// Menambah catatan baru ke riwayat
+function catatRiwayat(namaLampu, aksi, sumber) {
+  daftarRiwayat.push({ waktu: jamSekarang(), lampu: namaLampu, aksi: aksi, sumber: sumber });
+}
+
+// Pindah halaman
+function bukaHalaman(namaHalaman) {
+  halaman = namaHalaman;
+  tampilkan();
+}
+
+// Ganti antara mode pengguna dan admin
+function gantiMode() {
+  mode = (mode === "user") ? "admin" : "user";
+  halaman = "dashboard";
+  tampilkan();
+}
+
+/* BAGIAN 4: FUNGSI AKSI (dipanggil saat tombol diklik) */
+
+// Menyalakan / mematikan satu lampu
+function ubahLampu(id) {
+  const lampu = daftarLampu.find(function (l) { return l.id === id; });
+
+  if (!lampu.online) {
+    alert("Perangkat " + lampu.nama + " sedang offline!");
+    return;
+  }
+
+  lampu.nyala = !lampu.nyala;
+  catatRiwayat(lampu.nama, lampu.nyala ? "Nyala" : "Mati", "Manual");
+  tampilkan();
+}
+
+// Menyalakan semua lampu yang online
+function nyalakanSemua() {
+  daftarLampu.forEach(function (lampu) {
+    if (lampu.online && !lampu.nyala) {
+      lampu.nyala = true;
+      catatRiwayat(lampu.nama, "Nyala", "Manual");
+    }
+  });
+  tampilkan();
+}
+
+// Menyalakan / mematikan jadwal
+function ubahJadwal(id) {
+  const jadwal = daftarJadwal.find(function (j) { return j.id === id; });
+  jadwal.aktif = !jadwal.aktif;
+  tampilkan();
+}
+
+// Menambah jadwal baru
+function tambahJadwal() {
+  const nama = prompt("Nama lampu (contoh: Dapur):");
+  if (!nama) return;
+  const mulai = prompt("Jam mulai (contoh: 18.00):");
+  if (!mulai) return;
+  const selesai = prompt("Jam selesai (contoh: 22.00):");
+  if (!selesai) return;
+
+  daftarJadwal.push({
+    id: Date.now(), lampu: nama, mulai: mulai, selesai: selesai,
+    hari: "Setiap hari", aktif: true
+  });
+  tampilkan();
+}
+
+// Mengubah jam pada jadwal
+function editJadwal(id) {
+  const jadwal = daftarJadwal.find(function (j) { return j.id === id; });
+  const mulaiBaru = prompt("Jam mulai baru:", jadwal.mulai);
+  if (!mulaiBaru) return;
+  const selesaiBaru = prompt("Jam selesai baru:", jadwal.selesai);
+  if (!selesaiBaru) return;
+
+  jadwal.mulai = mulaiBaru;
+  jadwal.selesai = selesaiBaru;
+  tampilkan();
+}
+
+// Menambah perangkat baru (admin)
+function tambahPerangkat() {
+  const input = document.getElementById("inputPerangkat");
+  const nama = input.value.trim();
+
+  if (nama === "") {
+    alert("Nama perangkat tidak boleh kosong!");
+    return;
+  }
+
+  daftarLampu.push({ id: Date.now(), nama: nama, nyala: false, online: true });
+  tampilkan();
+}
+
+// Menghapus perangkat (admin)
+function hapusPerangkat(id) {
+  if (confirm("Yakin ingin menghapus perangkat ini?")) {
+    daftarLampu = daftarLampu.filter(function (l) { return l.id !== id; });
+    tampilkan();
+  }
+}
+
+// Mengganti periode laporan
+function ubahPeriode(nilai) {
+  periode = nilai;
+  tampilkan();
+}
+
+/* BAGIAN 5: FUNGSI TAMPILAN HALAMAN PENGGUNA
+   Setiap fungsi mengembalikan teks HTML */
+
+function halamanKontrolLampu() {
+  let kartu = "";
+
+  daftarLampu.forEach(function (lampu) {
+    const kelasNyala = lampu.nyala ? "nyala" : "";
+    const teksStatus = lampu.nyala ? "Menyala" : "Mati";
+    const kelasToggle = lampu.nyala ? "on" : "";
+
+    kartu += `
+      <div class="kartu-lampu">
+        <div class="info-lampu">
+          <div class="ikon ${kelasNyala}">💡</div>
+          <div>
+            <div class="nama">${lampu.nama}</div>
+            <div class="status ${kelasNyala}">${teksStatus}</div>
+          </div>
+        </div>
+        <button class="toggle ${kelasToggle}" onclick="ubahLampu(${lampu.id})"></button>
+      </div>`;
+  });
+
+  return `
+    <div class="baris-judul">
+      <h2>Kontrol Lampu</h2>
+      <button class="btn" onclick="nyalakanSemua()">Nyalakan Semua</button>
+    </div>
+    <div class="grid-lampu">${kartu}</div>`;
+}
+
+function halamanJadwalUser() {
+  let kartu = "";
+
+  daftarJadwal.forEach(function (j) {
+    kartu += `
+      <div class="kartu-jadwal">
+        <div>
+          <div class="nama">${j.lampu}</div>
+          <div class="jam">${j.mulai} - ${j.selesai}</div>
+        </div>
+        <button class="toggle ${j.aktif ? "on" : ""}" onclick="ubahJadwal(${j.id})"></button>
+      </div>`;
+  });
+
+  return `
+    <div class="baris-judul">
+      <h2>Jadwal Otomatis</h2>
+      <button class="btn" onclick="tambahJadwal()">+ Tambah</button>
+    </div>
+    ${kartu}`;
+}
+
+// Halaman yang kosong di Figma, diisi sesuai gambar ke-2
+function halamanRiwayat() {
+  let baris = "";
+
+  daftarRiwayat.forEach(function (r) {
+    baris += `
+      <tr>
+        <td>${r.waktu}</td>
+        <td>${r.lampu}</td>
+        <td>${r.aksi}</td>
+        <td>${r.sumber}</td>
+      </tr>`;
+  });
+
+  return `
+    <div class="baris-judul"><h2>Riwayat Penggunaan</h2></div>
+    <table>
+      <tr><th>Waktu</th><th>Lampu</th><th>Aksi</th><th>Sumber</th></tr>
+      ${baris}
+    </table>`;
+}
+
+// Kerangka mode pengguna: navbar di atas
+function layoutUser() {
+  let isi = "";
+  if (halaman === "dashboard") isi = halamanKontrolLampu();
+  if (halaman === "jadwal")    isi = halamanJadwalUser();
+  if (halaman === "riwayat")   isi = halamanRiwayat();
+
+  function kelas(nama) { return halaman === nama ? "aktif" : ""; }
+
+  return `
+    <div class="navbar">
+      <span class="logo">SMART LAMP</span>
+      <div class="menu">
+        <a class="${kelas("dashboard")}" onclick="bukaHalaman('dashboard')">Dasboard</a>
+        <a class="${kelas("jadwal")}" onclick="bukaHalaman('jadwal')">Jadwal</a>
+        <a class="${kelas("riwayat")}" onclick="bukaHalaman('riwayat')">Riwayat</a>
+        <button class="btn-mode" onclick="gantiMode()">Mode Admin</button>
+      </div>
+    </div>
+    <div class="konten">${isi}</div>`;
+}
+
+/*
+   BAGIAN 6: FUNGSI TAMPILAN HALAMAN ADMIN */
+
+function halamanDashboardAdmin() {
+  // Angka dihitung otomatis dari data
+  const total = daftarLampu.length;
+  const online = daftarLampu.filter(function (l) { return l.online; }).length;
+  const jadwalAktif = daftarJadwal.filter(function (j) { return j.aktif; }).length;
+  const menyala = daftarLampu.filter(function (l) { return l.nyala; }).length;
+
+  let barisStatus = "";
+  daftarLampu.forEach(function (l) {
+    const kelas = l.online ? "online" : "offline";
+    const teks = l.online ? "Online" : "Offline";
+    barisStatus += `
+      <div class="baris-status">
+        <span>Lampu ${l.nama}</span>
+        <span class="${kelas}">${teks}</span>
+      </div>`;
+  });
+
+  return `
+    <h2>Dasboard Admin</h2>
+    <p class="sub">Ringkasan Sistem Smart Lamp</p>
+
+    <div class="grid-stat">
+      <div class="stat"><small>Total Perangkat</small><div class="angka">${total}</div></div>
+      <div class="stat"><small>Perangkat Online</small><div class="angka">${online}</div></div>
+      <div class="stat"><small>Jadwal Aktif</small><div class="angka">${jadwalAktif}</div></div>
+      <div class="stat"><small>Lampu Menyala</small><div class="angka">${menyala}</div></div>
+    </div>
+
+    <div class="kotak">
+      <h4>Status Perangkat</h4>
+      ${barisStatus}
+    </div>`;
+}
+
+function halamanPerangkat() {
+  let baris = "";
+  daftarLampu.forEach(function (l) {
+    baris += `
+      <tr>
+        <td>${l.nama}</td>
+        <td class="${l.online ? "online" : "offline"}">${l.online ? "Online" : "Offline"}</td>
+        <td>${l.nyala ? "Menyala" : "Mati"}</td>
+        <td><button class="btn-kecil" onclick="hapusPerangkat(${l.id})">Hapus</button></td>
+      </tr>`;
+  });
+
+  return `
+    <h2>Manajemen Perangkat</h2>
+    <p class="sub" style="margin-bottom:16px">Tambah atau hapus perangkat lampu</p>
+
+    <div class="form-tambah">
+      <input type="text" id="inputPerangkat" placeholder="Nama perangkat, contoh: Taman">
+      <button class="btn" onclick="tambahPerangkat()">+ Tambahkan Perangkat</button>
+    </div>
+
+    <table>
+      <tr><th>Nama</th><th>Koneksi</th><th>Kondisi</th><th>Aksi</th></tr>
+      ${baris}
+    </table>`;
+}
+
+function halamanLaporan() {
+  const data = dataLaporan[periode];
+
+  // Nilai tertinggi dibulatkan ke atas (kelipatan 4) sebagai batas sumbu
+  const nilaiTertinggi = Math.max(...Object.values(data.perLampu));
+  const batasSumbu = Math.ceil(nilaiTertinggi / 4) * 4;
+
+  // Membuat batang tiap lampu
+  let batang = "";
+  for (const nama in data.perLampu) {
+    const jam = data.perLampu[nama];
+    const lebar = (jam / batasSumbu) * 100; // panjang batang dalam persen
+    batang += `
+      <div class="chart-row">
+        <span class="chart-label">${nama}</span>
+        <div class="bar-kuning" style="width:${lebar}%" title="${jam} jam"></div>
+      </div>`;
+  }
+
+  // Membuat garis bantu dan angka di sumbu bawah (5 titik: 0, 25%, 50%, 75%, 100%)
+  let garis = "";
+  let angkaSumbu = "";
+  for (let i = 0; i <= 4; i++) {
+    const posisi = i * 25;
+    const nilai = (batasSumbu / 4) * i;
+    garis += `<div class="garis" style="left:${posisi}%"></div>`;
+    angkaSumbu += `<span class="tick" style="left:${posisi}%">${nilai}</span>`;
+  }
+
+  return `
+    <h2>Laporan Penggunaan</h2>
+    <p class="sub">Ringkasan durasi penggunaan lampu</p>
+
+    <div class="grid-stat">
+      <div class="stat">
+        <small>Periode</small>
+        <div style="margin-top:8px">
+          <select onchange="ubahPeriode(this.value)">
+            <option ${periode === "Harian" ? "selected" : ""}>Harian</option>
+            <option ${periode === "Mingguan" ? "selected" : ""}>Mingguan</option>
+            <option ${periode === "Bulanan" ? "selected" : ""}>Bulanan</option>
+          </select>
+        </div>
+      </div>
+      <div class="stat"><small>Total Durasi</small><div class="angka" style="font-size:20px">${data.total} Jam</div></div>
+    </div>
+
+    <div class="chart-judul">Durasi Lampu Menyala (jam)</div>
+    <div class="chart">
+      <div class="chart-area">
+        ${garis}
+        ${batang}
+      </div>
+      <div class="chart-axis">${angkaSumbu}</div>
+    </div>
+    <p class="catatan">Data hanya ilustrasi</p>`;
+}
+
+function halamanJadwalAdmin() {
+  let kartu = "";
+
+  daftarJadwal.forEach(function (j) {
+    kartu += `
+      <div class="kartu-jadwal">
+        <div>
+          <div class="nama">Lampu ${j.lampu}</div>
+          <div class="jam">${j.mulai} - ${j.selesai}</div>
+          <div class="hari">${j.hari}</div>
+          <div class="aksi-kartu">
+            <button class="btn-kecil" onclick="editJadwal(${j.id})">Ubah jadwal</button>
+            <button class="btn-kecil" onclick="ubahJadwal(${j.id})">${j.aktif ? "Nonaktifkan" : "Aktifkan"}</button>
+          </div>
+        </div>
+        <span class="badge ${j.aktif ? "aktif" : "nonaktif"}">${j.aktif ? "Aktif" : "Nonaktif"}</span>
+      </div>`;
+  });
+
+  return `
+    <h2 style="margin-bottom:16px">Manajemen Jadwal</h2>
+    <button class="btn" style="width:100%;margin-bottom:16px" onclick="tambahJadwal()">+ Tambah Jadwal</button>
+    ${kartu}`;
+}
+
+// Kerangka mode admin: sidebar di kiri
+function layoutAdmin() {
+  let isi = "";
+  if (halaman === "dashboard") isi = halamanDashboardAdmin();
+  if (halaman === "perangkat") isi = halamanPerangkat();
+  if (halaman === "laporan")   isi = halamanLaporan();
+  if (halaman === "jadwal")    isi = halamanJadwalAdmin();
+
+  function kelas(nama) { return halaman === nama ? "aktif" : ""; }
+
+  return `
+    <div class="layout-admin">
+      <div class="sidebar">
+        <span class="logo">SMART LAMP</span>
+        <a class="${kelas("dashboard")}" onclick="bukaHalaman('dashboard')">Dashboard</a>
+        <a class="${kelas("perangkat")}" onclick="bukaHalaman('perangkat')">Perangkat</a>
+        <a class="${kelas("laporan")}" onclick="bukaHalaman('laporan')">Laporan</a>
+        <a class="${kelas("jadwal")}" onclick="bukaHalaman('jadwal')">Jadwal</a>
+        <button class="btn-mode" onclick="gantiMode()">Mode Pengguna</button>
+      </div>
+      <div class="isi-admin">${isi}</div>
+    </div>`;
+}
+
+/* BAGIAN 7: MENAMPILKAN KE LAYAR */
+function tampilkan() {
+  const app = document.getElementById("app");
+  app.innerHTML = (mode === "user") ? layoutUser() : layoutAdmin();
+}
+
+// Jalankan pertama kali saat halaman dibuka
+tampilkan();
+</script>
+</body>
+</html>
